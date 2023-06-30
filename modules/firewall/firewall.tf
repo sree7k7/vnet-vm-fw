@@ -2,7 +2,7 @@ resource "azurerm_public_ip" "fw-pip" {
   # for_each            = local.public_ip_map
   name                = "fw_pip"
   location            = var.resource_group_location
-  resource_group_name = azurerm_resource_group.rg.name
+  resource_group_name = var.resource_group_name_prefix
   allocation_method   = "Static"
   sku                 = "Standard"
   # public_ip_prefix_id = azurerm_public_ip_prefix.pip_prefix.id
@@ -10,20 +10,20 @@ resource "azurerm_public_ip" "fw-pip" {
 resource "azurerm_firewall_policy" "firewall_policy" {
   name                = "firewall_policy"
   location            = var.resource_group_location
-  resource_group_name = azurerm_resource_group.rg.name
+  resource_group_name = var.resource_group_name_prefix
 }
 
 resource "azurerm_firewall" "azure_fw" {
-  name                = lower("azureFW-${var.vnet_config["vnetname"]}-${var.resource_group_location}")
+  name                = lower("azureFW-${var.resource_group_location}")
   location            = var.resource_group_location
-  resource_group_name = azurerm_resource_group.rg.name
+  resource_group_name = var.resource_group_name_prefix
   sku_name            = "AZFW_VNet"
   sku_tier            = "Standard"
   threat_intel_mode   = "Alert"
   firewall_policy_id = azurerm_firewall_policy.firewall_policy.id
   ip_configuration {
     name                 = "firewall-ip-config"
-    subnet_id            = azurerm_subnet.firewall_subnet.id
+    subnet_id            = var.firewall_subnet_id
     public_ip_address_id = azurerm_public_ip.fw-pip.id
   }
 }
@@ -42,13 +42,13 @@ resource "azurerm_firewall_policy_rule_collection_group" "example" {
     priority = 300
     action   = "Dnat"
     rule {
-      name                  = "nat_rule_collection1_rule1"
-      protocols             = ["TCP"]
-      source_addresses      = ["83.221.156.201"]
+      name                  = var.ruleName
+      protocols             = [var.protocol] 
+      source_addresses      = [var.source_address]
       destination_address   = azurerm_public_ip.fw-pip.ip_address
-      destination_ports     = ["4000"]
-      translated_address    = azurerm_windows_virtual_machine.vm.private_ip_address
-      translated_port       = 3389
+      destination_ports     = [var.destination_port]
+      translated_address    = var.vm_private_ip
+      translated_port       = var.translated_port
     }
 #   rule {
 #     name                  = "local-rdp-rule"
@@ -60,7 +60,26 @@ resource "azurerm_firewall_policy_rule_collection_group" "example" {
 #     translated_port       = 3389
 #   }
   }
-#   lifecycle {
-#     ignore_changes = [ ]
-# }
+
 }
+
+
+## Fire will route table
+
+resource "azurerm_route_table" "firewall_route_table" {
+  name                = "azure_firewall-routetable"
+  location = var.resource_group_location
+  resource_group_name  = var.resource_group_name_prefix
+
+  route {
+    name                   = "internetDeny"
+    address_prefix         = "0.0.0.0/0"
+    next_hop_type          = "VirtualAppliance"
+    next_hop_in_ip_address = azurerm_firewall.azure_fw.ip_configuration[0].private_ip_address
+  }
+}
+
+# resource "azurerm_subnet_route_table_association" "example" {
+#   subnet_id      = var.firewall_subnet_id
+#   route_table_id = azurerm_route_table.firewall_route_table.id
+# }

@@ -16,19 +16,19 @@ variable "vnet_config" {
     }
 }
 variable "vnet_cidr" {
-    type = string
+    # type = string
 #   default = ["10.7.0.0/16"]
 }
 variable "public_subnet_address" {
-    type = string
+    # type = string
 #   default = ["10.7.1.0/24"]
 }
 variable "gateway_subnet_address" {
-    type = string
+    # type = string
 #   default = ["10.7.3.0/24"]
 }
 variable "firewall_subnet_address_prefix" {
-    type = string
+    # type = string
 #   default = ["10.7.4.128/25"]
 }
 
